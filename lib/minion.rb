@@ -1,5 +1,5 @@
 require 'uri'
-require 'json' unless defined? ActiveSupport::JSON
+require 'yaml'
 require 'bunny'
 require 'amqp'
 require 'minion/handler'
@@ -12,12 +12,12 @@ module Minion
     @@config_url = url
   end
 
-  # push message with json-encoded data to queue named as job
+  # push message with yaml-encoded data to queue named as job
   def enqueue(jobs, data = {})
     raise "cannot enqueue a nil job" if jobs.nil?
     raise "cannot enqueue an empty job" if jobs.empty?
 
-    encoded = encode_json(data)
+    encoded = encode(data)
     
     [jobs].flatten.each do |job|
       connect.queue(job, :durable => true, :auto_delete => false).publish(encoded)
@@ -48,12 +48,14 @@ module Minion
     @@handlers << handler
   end
 
-  def encode_json(data)
-    defined?(ActiveSupport::JSON) ? ActiveSupport::JSON.encode(data) : JSON.generate(data)
+  def encode(data)
+    raise Exception.new("YAML not defined") if not defined?(YAML)
+    YAML.dump(data)
   end
-  
-  def decode_json(string)
-    defined?(ActiveSupport::JSON) ? ActiveSupport::JSON.decode(string) : JSON.parse(string)
+
+  def decode(string)
+    raise Exception.new("YAML not defined") if not defined?(YAML)
+    YAML.load(string)
   end
 
   # check all job-hadlers
